@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg: #F4F1EA;
+  --surface: #FFFFFF;
+  --line: rgba(18, 18, 18, 0.15);
+  --ink: #121212;
+  --accent: #C2410C;
+  --accent-soft: rgba(194, 65, 12, 0.1);
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-serif);
+  }
+}
+
+.label-caps {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink);
+  opacity: 0.6;
+}
+
+.mono-value {
+  font-family: var(--font-mono);
+}
+
+.editorial-card {
+  background: white;
+  border: 1px solid var(--line);
+  padding: 1.5rem;
+}
+
+.editorial-header {
+  border-bottom: 2px solid var(--ink);
+}
+
+@layer utilities {
+  .serif-italic {
+    font-family: var(--font-serif);
+    font-style: italic;
+  }
+}

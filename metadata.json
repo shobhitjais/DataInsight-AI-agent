@@ -1,0 +1,6 @@
+{
+  "name": "DataInsight AI Agent",
+  "description": "An intelligent data analyst agent that helps you explore, visualize, and gain insights from your datasets through natural language conversation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["Data Analysis", "Visualization", "Natural Language Querying"]
+}
