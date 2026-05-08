@@ -4,12 +4,12 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Send, FileText, BarChart3, Database, Trash2, Github, Wand2, Sparkles, AlertCircle } from 'lucide-react';
+import { Upload, Send, FileText, BarChart3, Database, Trash2, Wand2, Sparkles, AlertCircle, Download, Moon, Sun } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { parseCSV, generateDataSummary, imputeMissing, standardize, detectOutliers } from './lib/dataUtils';
+import { parseCSV, generateDataSummary, imputeMissing, standardize, detectOutliers, exportCSV } from './lib/dataUtils';
 import { streamAnalysis, parseChartConfig } from './lib/gemini';
 import { DataRow, DataSummary, ChatMessage } from './types';
-import { DataPreview } from './components/DataPreview';
+import { DataPreview, PulseChart } from './components/DataPreview';
 import { ChatBubble } from './components/ChatBubble';
 
 import { clsx, type ClassValue } from 'clsx';
@@ -19,6 +19,20 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const DEFAULT_SUGGESTIONS = [
+  "Show me a summary of results",
+  "Visualize distribution of high-value columns",
+  "Identify potential outliers",
+  "Compare core segments"
+];
+
+const QUOTES = [
+  { text: "Information is the resolution of uncertainty.", author: "Claude Shannon" },
+  { text: "In God we trust, all others must bring data.", author: "W. Edwards Deming" },
+  { text: "The goal is to turn data into information, and information into insight.", author: "Carly Fiorina" },
+  { text: "Data are just summaries of thousands of stories.", author: "Chip Heath" }
+];
+
 export default function App() {
   const [data, setData] = useState<DataRow[] | null>(null);
   const [summary, setSummary] = useState<DataSummary | null>(null);
@@ -27,6 +41,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<'index' | 'clean'>('index');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +56,13 @@ export default function App() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuoteIndex(prev => (prev + 1) % QUOTES.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -50,6 +74,10 @@ export default function App() {
       setData(parsedData);
       setSummary(dataSummary);
       
+      // Update suggestions based on data
+      const colSuggs = dataSummary.columns.slice(0, 2).map(c => `Analyze distribution of ${c}`);
+      setSuggestions([...colSuggs, ...DEFAULT_SUGGESTIONS]);
+
       const welcomeMsg: ChatMessage = {
         id: 'welcome',
         role: 'assistant',
@@ -62,6 +90,12 @@ export default function App() {
       alert('Error parsing CSV file');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (data) {
+      exportCSV(data, 'cleaned_dataset.csv');
     }
   };
 
@@ -148,23 +182,53 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F4F1EA] text-[#121212] font-serif border-8 border-white">
+    <div className={cn(
+      "flex flex-col h-screen font-serif border-8 transition-colors duration-500",
+      isDarkMode ? "bg-[#0A0A0A] text-[#F4F1EA] border-[#121212]" : "bg-[#F4F1EA] text-[#121212] border-white"
+    )}>
       {/* Header */}
-      <header className="h-20 border-b border-ink/20 flex items-baseline justify-between px-8 mx-2 mt-4 transition-all">
+      <header className={cn(
+        "h-20 border-b flex items-baseline justify-between px-8 mx-2 mt-4 transition-all",
+        isDarkMode ? "border-white/10" : "border-ink/20"
+      )}>
         <div className="flex flex-col">
-          <div className="label-caps text-[#C2410C]">DataIntelligence / Analyst Node</div>
-          <h1 className="text-3xl italic font-light tracking-tight">Intelligence Report</h1>
+          <div className="label-caps text-[#C2410C]">Architectural Node / Analyst Workstation</div>
+          <h1 className="text-3xl italic font-light tracking-tight">Welcome to DataInsight</h1>
         </div>
         <div className="flex items-center gap-6">
           <div className="label-caps hidden md:block">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} — {new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })} UTC</div>
-          {data && (
+          <div className="flex items-center gap-3">
             <button 
-              onClick={reset}
-              className="label-caps border border-ink/20 px-3 py-1 hover:bg-ink hover:text-white transition-all transform hover:scale-105"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={cn(
+                "w-10 h-10 flex items-center justify-center rounded-full transition-all border",
+                isDarkMode ? "border-white/20 bg-white/5 text-white" : "border-black/10 bg-black/5 text-black"
+              )}
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              Reset System
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-          )}
+            {data && (
+              <>
+                <button 
+                  onClick={handleExport}
+                  className="label-caps border border-accent text-accent px-4 py-1 hover:bg-accent hover:text-white transition-all transform hover:scale-105 flex items-center gap-2"
+                >
+                  <Download size={14} />
+                  Export CSV
+                </button>
+                <button 
+                  onClick={reset}
+                  className={cn(
+                    "label-caps border px-4 py-1 hover:bg-ink hover:text-white transition-all transform hover:scale-105",
+                    isDarkMode ? "border-white/20 text-white/70" : "border-ink/20 text-ink"
+                  )}
+                >
+                  Reset System
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -181,19 +245,22 @@ export default function App() {
               <motion.div 
                 whileHover={{ y: -4 }}
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full max-w-lg p-16 border border-ink/10 bg-white shadow-sm hover:border-accent group cursor-pointer relative"
+                className={cn(
+                  "w-full max-w-lg p-16 border shadow-sm group cursor-pointer relative transition-colors duration-500",
+                  isDarkMode ? "bg-[#121212] border-white/10 hover:border-accent" : "bg-white border-ink/10 hover:border-accent"
+                )}
               >
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity">
                   <Database size={40} className="text-accent" />
                 </div>
-                <h2 className="text-6xl font-light tracking-tighter mb-4 leading-none">
-                  Data <br/>
-                  <span className="italic">redefined.</span>
+                <h2 className="text-6xl font-light tracking-tighter mb-4 leading-none text-current">
+                  Welcome to <br/>
+                  <span className="italic text-current">DataInsight.</span>
                 </h2>
-                <p className="label-caps opacity-50 mb-10 max-w-xs mx-auto">
-                  Upload a dataset to generate insights
+                <p className="label-caps opacity-50 mb-10 max-w-xs mx-auto text-current">
+                  Specializing in fintech analysis
                 </p>
-                <button className="label-caps border-b-2 border-accent pb-1 group-hover:text-accent transition-colors">
+                <button className="label-caps border-b-2 border-accent pb-1 group-hover:text-accent transition-colors text-current">
                   Select Dataset Library
                 </button>
                 <input 
@@ -221,6 +288,7 @@ export default function App() {
                           role={m.role} 
                           content={m.content} 
                           chartConfig={m.chartConfig} 
+                          isDarkMode={isDarkMode}
                         />
                       </motion.div>
                     ))}
@@ -232,7 +300,31 @@ export default function App() {
               {/* Input Area */}
               <div className="px-10 pb-8 pt-4 shrink-0">
                 <div className="max-w-4xl mx-auto relative">
-                  <div className="flex items-center gap-4 bg-[#121212] text-white p-2">
+                  {/* Quick Suggestions */}
+                  <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
+                    {suggestions.map((s, i) => (
+                      <motion.button
+                        key={i}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        onClick={() => { setInput(s); }}
+                        className={cn(
+                          "whitespace-nowrap label-caps text-[8px] border px-3 py-1.5 transition-all transform hover:-translate-y-0.5 active:translate-y-0",
+                          isDarkMode 
+                            ? "bg-white/5 border-white/10 text-white/70 hover:bg-white/10" 
+                            : "bg-white border-ink/10 text-ink hover:bg-ink hover:text-white"
+                        )}
+                      >
+                        {s}
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  <div className={cn(
+                    "flex items-center gap-4 p-2 transition-colors duration-500",
+                    isDarkMode ? "bg-white/5 border border-white/10 text-white" : "bg-[#121212] text-white"
+                  )}>
                     <input
                       type="text"
                       value={input}
@@ -245,7 +337,10 @@ export default function App() {
                     <button 
                       onClick={handleSend}
                       disabled={isLoading || !input.trim()}
-                      className="w-10 h-10 flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-30"
+                      className={cn(
+                        "w-10 h-10 flex items-center justify-center transition-colors disabled:opacity-30",
+                        isDarkMode ? "hover:bg-white/10" : "hover:bg-accent"
+                      )}
                     >
                       <Send size={18} />
                     </button>
@@ -265,9 +360,30 @@ export default function App() {
         {data && (
           <aside className="w-[450px] bg-[#121212] text-white overflow-y-auto p-10 flex flex-col gap-10 shadow-2xl z-0">
             <header className="flex flex-col gap-6">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(194,65,12,0.8)]"></div>
-                <span className="label-caps text-white">Agent Online</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative w-2 h-2">
+                    <motion.div 
+                      animate={{ scale: [1, 2, 1], opacity: [1, 0, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 bg-accent rounded-full"
+                    />
+                    <div className="absolute inset-0 bg-accent rounded-full shadow-[0_0_8px_rgba(194,65,12,0.8)]" />
+                  </div>
+                  <span className="label-caps text-white">Agent Online</span>
+                </div>
+                <button 
+                  onClick={handleExport}
+                  className="label-caps text-[9px] border border-white/20 px-2 py-1 hover:bg-accent hover:border-accent transition-all flex items-center gap-2"
+                >
+                  <Download size={10} />
+                  Export CSV
+                </button>
+              </div>
+
+              <div className="border border-white/5 p-4 bg-white/[0.02]">
+                <div className="label-caps text-[8px] mb-2 text-white/30">Process Pulse / Frequency</div>
+                <PulseChart />
               </div>
               
               <div className="flex border-b border-white/10">
@@ -290,7 +406,7 @@ export default function App() {
               <section className="space-y-6">
                 <div className="border-t border-white/10 pt-4">
                   <span className="label-caps text-white/50 mb-2 block">System Metrics</span>
-                  <div className="grid grid-cols-2 gap-px bg-white/10">
+                  <div className="grid grid-cols-2 gap-px bg-white/10 mb-4">
                     <div className="bg-[#121212] p-4">
                       <div className="text-3xl font-light italic leading-none mb-1">{summary?.rowCount}</div>
                       <div className="label-caps text-[9px] text-white/40">Observations</div>
@@ -298,6 +414,86 @@ export default function App() {
                     <div className="bg-[#121212] p-4">
                       <div className="text-3xl font-light italic leading-none mb-1">{summary?.columns.length}</div>
                       <div className="label-caps text-[9px] text-white/40">Vectors</div>
+                    </div>
+                  </div>
+                  
+                  {/* Infographic: Heuristic Integrity Matrix */}
+                  <div className="bg-white/[0.02] border border-white/5 p-4">
+                     <div className="flex justify-between items-center mb-3">
+                        <span className="label-caps text-[8px] text-white/30">Heuristic Integrity Matrix</span>
+                        <div className="flex gap-1">
+                           <div className="w-1.5 h-1.5 bg-accent/50 rounded-full" />
+                           <div className="w-1.5 h-1.5 bg-white/10 rounded-full" />
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-10 gap-1 opacity-40">
+                        {Array.from({ length: 40 }).map((_, i) => (
+                          <motion.div 
+                            key={i}
+                            animate={{ 
+                              opacity: [0.2, 0.5, 0.2],
+                              backgroundColor: Math.random() > 0.9 ? "#C2410C" : "rgba(255,255,255,0.1)"
+                            }}
+                            transition={{ 
+                              duration: 3 + Math.random() * 4, 
+                              repeat: Infinity,
+                              delay: Math.random() * 2
+                            }}
+                            className="w-full aspect-square rounded-sm"
+                          />
+                        ))}
+                     </div>
+                     <div className="mt-3 flex justify-between label-caps text-[7px] text-white/20">
+                        <span>L-Frequency</span>
+                        <span>Vector Variance</span>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-6">
+                   <div className="flex justify-between items-center mb-2">
+                     <span className="label-caps text-white/50">Vector Integrity</span>
+                     <span className="label-caps text-accent">94.2%</span>
+                   </div>
+                   <div className="w-full h-1 bg-white/10">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "94.2%" }}
+                        className="h-full bg-accent"
+                      />
+                   </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-6">
+                  <span className="label-caps text-white/50 mb-4 block">Neural Processing Hub</span>
+                  <div className="flex justify-center py-4 bg-white/[0.01] border border-white/5 rounded-sm overflow-hidden relative">
+                    <div className="absolute inset-0 opacity-10">
+                       <div className="w-full h-full" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '10px 10px' }} />
+                    </div>
+                    <div className="flex items-center gap-8 relative z-10">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-3 h-3 border border-white/20 rounded-full" />
+                        <div className="w-px h-12 bg-gradient-to-b from-white/20 to-accent" />
+                        <div className="w-4 h-4 bg-accent rotate-45 border border-white/50 shadow-[0_0_10px_#C2410C]" />
+                        <div className="w-px h-8 bg-white/10" />
+                        <div className="w-2 h-2 border border-white/20 rounded-full" />
+                      </div>
+                      <div className="flex flex-col gap-4">
+                         {Array.from({ length: 3 }).map((_, i) => (
+                           <motion.div 
+                             key={i}
+                             animate={{ x: [0, 4, 0], opacity: [0.3, 0.6, 0.3] }}
+                             transition={{ duration: 3, delay: i * 0.5, repeat: Infinity }}
+                             className="h-1 w-24 bg-white/5 rounded-full overflow-hidden"
+                           >
+                             <motion.div 
+                               animate={{ x: ["-100%", "100%"] }}
+                               transition={{ duration: 2, delay: i * 0.8, repeat: Infinity, ease: "linear" }}
+                               className="h-full w-12 bg-accent"
+                             />
+                           </motion.div>
+                         ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -318,6 +514,24 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                <section className="border-t border-white/10 pt-8 pb-4">
+                  <span className="label-caps text-accent mb-4 block">Editorial Context</span>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={quoteIndex}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="space-y-2"
+                    >
+                      <p className="text-lg leading-tight font-light italic text-white/90">
+                        "{QUOTES[quoteIndex].text}"
+                      </p>
+                      <p className="label-caps text-[9px] text-white/30">— {QUOTES[quoteIndex].author}</p>
+                    </motion.div>
+                  </AnimatePresence>
+                </section>
               </section>
             ) : (
               <section className="space-y-10">

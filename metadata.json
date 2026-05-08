@@ -1,6 +1,6 @@
 {
-  "name": "DataInsight AI Agent",
-  "description": "An intelligent data analyst agent that helps you explore, visualize, and gain insights from your datasets through natural language conversation.",
+  "name": "Specializing in Fintech Analysis",
+  "description": "A high-performance workspace specialized in fintech data cleaning, architectural dashboarding, and financial risk intelligence.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["Data Analysis", "Visualization", "Natural Language Querying"]
+  "majorCapabilities": ["Data Cleaning", "Dashboard Architecture", "Heuristic Analysis", "Interactive Visualization"]
 }
