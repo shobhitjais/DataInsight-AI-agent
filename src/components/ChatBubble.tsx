@@ -1,27 +1,42 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ChartConfig } from '../types';
+import { ChartConfig, DataframeConfig } from '../types';
 import { ChartRenderer } from './ChartRenderer';
-import { User, Bot } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { DataframeRenderer } from './DataframeRenderer';
+import { User, Bot, Volume2, VolumeX } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface ChatBubbleProps {
   role: 'user' | 'assistant';
   content: string;
   chartConfig?: ChartConfig | null;
+  dataframeConfig?: DataframeConfig | null;
   isDarkMode?: boolean;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ role, content, chartConfig, isDarkMode }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ role, content, chartConfig, dataframeConfig, isDarkMode }) => {
   const isAssistant = role === 'assistant';
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Extract text by removing chart block if exists
-  const textContent = content.replace(/\[CHART_START\][\s\S]*?\[CHART_END\]/g, '').trim();
+  // Extract text by removing chart and dataframe blocks if exists
+  const textContent = content
+    .replace(/\[CHART_START\][\s\S]*?\[CHART_END\]/g, '')
+    .replace(/\[DATAFRAME_START\][\s\S]*?\[DATAFRAME_END\]/g, '')
+    .trim();
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(textContent);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
 
   return (
     <div className={cn("flex w-full mb-10 gap-6", isAssistant ? "justify-start" : "justify-end flex-row-reverse")}>
@@ -41,10 +56,22 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ role, content, chartConf
           : cn("p-4", isDarkMode ? "bg-white/5 text-white border border-white/10" : "bg-[#121212] text-white")
       )}>
         {isAssistant && (
-          <div className={cn("label-caps mb-4 flex items-center gap-2", isDarkMode ? "text-white/80" : "text-ink")}>
-            <span className="text-accent underline decoration-accent/20">AI Analysis</span>
-            <span className="opacity-20">/</span>
-            <span className="opacity-40 italic lowercase font-light">Insight node active</span>
+          <div className={cn("label-caps mb-4 flex items-center justify-between", isDarkMode ? "text-white/80" : "text-ink")}>
+            <div className="flex items-center gap-2">
+              <span className="text-accent underline decoration-accent/20">AI Analysis</span>
+              <span className="opacity-20">/</span>
+              <span className="opacity-40 italic lowercase font-light">Insight node active</span>
+            </div>
+            <button 
+              onClick={handleSpeak}
+              className={cn(
+                "p-1 rounded-full transition-colors hover:bg-white/10",
+                isSpeaking ? "text-accent" : "opacity-30 hover:opacity-100"
+              )}
+              title={isSpeaking ? "Stop Speaking" : "Listen to Analysis"}
+            >
+              {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            </button>
           </div>
         )}
         <div className={cn(
@@ -59,6 +86,12 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ role, content, chartConf
         {chartConfig && (
           <div className={cn("mt-8 border-t pt-6", isDarkMode ? "border-white/5" : "border-ink/5")}>
             <ChartRenderer config={chartConfig} isDarkMode={isDarkMode} />
+          </div>
+        )}
+
+        {dataframeConfig && (
+          <div className={cn("mt-8 border-t pt-6", isDarkMode ? "border-white/5" : "border-ink/5")}>
+            <DataframeRenderer config={dataframeConfig} isDarkMode={isDarkMode} />
           </div>
         )}
       </div>

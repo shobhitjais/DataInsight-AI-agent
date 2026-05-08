@@ -4,6 +4,7 @@ import {
   LineChart, Line, PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area 
 } from 'recharts';
 import { ChartConfig } from '../types';
+import { cn } from '../lib/utils';
 
 const COLORS = ['#121212', '#C2410C', '#666666', '#999999', '#333333'];
 

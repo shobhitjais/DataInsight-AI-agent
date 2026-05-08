@@ -28,6 +28,7 @@ export interface ChatMessage {
   content: string;
   type?: 'text' | 'chart' | 'insight';
   chartConfig?: ChartConfig;
+  dataframeConfig?: DataframeConfig;
   timestamp: number;
 }
 
@@ -37,4 +38,10 @@ export interface ChartConfig {
   xAxis: string;
   yAxis: string;
   data: any[];
+}
+
+export interface DataframeConfig {
+  title: string;
+  headers: string[];
+  rows: any[][];
 }

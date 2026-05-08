@@ -4,20 +4,15 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Send, FileText, BarChart3, Database, Trash2, Wand2, Sparkles, AlertCircle, Download, Moon, Sun } from 'lucide-react';
+import { Upload, Send, FileText, BarChart3, Database, Trash2, Wand2, Sparkles, AlertCircle, Download, Moon, Sun, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseCSV, generateDataSummary, imputeMissing, standardize, detectOutliers, exportCSV } from './lib/dataUtils';
-import { streamAnalysis, parseChartConfig } from './lib/gemini';
+import { streamAnalysis, parseChartConfig, parseDataframeConfig } from './lib/gemini';
 import { DataRow, DataSummary, ChatMessage } from './types';
 import { DataPreview, PulseChart } from './components/DataPreview';
 import { ChatBubble } from './components/ChatBubble';
 
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from './lib/utils';
 
 const DEFAULT_SUGGESTIONS = [
   "Show me a summary of results",
@@ -44,6 +39,8 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -120,6 +117,49 @@ export default function App() {
     }]);
   };
 
+  const toggleListening = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error === 'no-speech') {
+        console.warn("Speech recognition: No speech detected.");
+      } else {
+        console.error("Speech recognition error", event.error);
+      }
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
   const handleSend = async () => {
     if (!input.trim() || !summary || isLoading) return;
 
@@ -160,9 +200,11 @@ export default function App() {
 
       // After stream finished, check for chart config
       const chartConfig = parseChartConfig(fullResponse);
-      if (chartConfig) {
+      const dataframeConfig = parseDataframeConfig(fullResponse);
+      
+      if (chartConfig || dataframeConfig) {
         setMessages(prev => prev.map(m => 
-          m.id === assistantId ? { ...m, chartConfig } : m
+          m.id === assistantId ? { ...m, chartConfig: chartConfig || undefined, dataframeConfig: dataframeConfig || undefined } : m
         ));
       }
     } catch (err) {
@@ -288,6 +330,7 @@ export default function App() {
                           role={m.role} 
                           content={m.content} 
                           chartConfig={m.chartConfig} 
+                          dataframeConfig={m.dataframeConfig}
                           isDarkMode={isDarkMode}
                         />
                       </motion.div>
@@ -330,10 +373,20 @@ export default function App() {
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                      placeholder="Ask the analyst anything..."
+                      placeholder={isListening ? "Listening..." : "Ask the analyst anything..."}
                       disabled={isLoading}
                       className="flex-1 bg-transparent border-none outline-none font-sans text-sm italic px-4 py-3 placeholder:text-white/30"
                     />
+                    <button 
+                      onClick={toggleListening}
+                      className={cn(
+                        "w-10 h-10 flex items-center justify-center transition-colors hover:text-accent",
+                        isListening ? "text-accent animate-pulse" : "text-white/40"
+                      )}
+                      title="Voice Command"
+                    >
+                      {isListening ? <Mic size={18} /> : <Mic size={18} />}
+                    </button>
                     <button 
                       onClick={handleSend}
                       disabled={isLoading || !input.trim()}

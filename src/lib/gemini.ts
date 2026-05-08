@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { DataSummary, ChartConfig } from "../types";
+import { DataSummary, ChartConfig, DataframeConfig } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -36,6 +36,19 @@ If you suggest a chart, use the following format:
 }
 [CHART_END]
 
+5. Dataframe Logic:
+If you want to present data in a tabular/dataframe format, use:
+[DATAFRAME_START]
+{
+  "title": "A descriptive title for the data",
+  "headers": ["Column 1", "Column 2", ...],
+  "rows": [
+    ["Value 1A", "Value 1B", ...],
+    ["Value 2A", "Value 2B", ...]
+  ]
+}
+[DATAFRAME_END]
+
 Your goal is to transform raw entropy into a structured intelligence report.`;
 
   const model = "gemini-3-flash-preview"; // Using the correct preview model as per skill guidelines
@@ -68,6 +81,17 @@ export function parseChartConfig(text: string): ChartConfig | null {
     return JSON.parse(match[1].trim());
   } catch (e) {
     console.error("Failed to parse chart config", e);
+    return null;
+  }
+}
+
+export function parseDataframeConfig(text: string): DataframeConfig | null {
+  const match = text.match(/\[DATAFRAME_START\]([\s\S]*?)\[DATAFRAME_END\]/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1].trim());
+  } catch (e) {
+    console.error("Failed to parse dataframe config", e);
     return null;
   }
 }

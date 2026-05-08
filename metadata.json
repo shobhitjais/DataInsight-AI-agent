@@ -1,6 +1,6 @@
 {
   "name": "Specializing in Fintech Analysis",
   "description": "A high-performance workspace specialized in fintech data cleaning, architectural dashboarding, and financial risk intelligence.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["Data Cleaning", "Dashboard Architecture", "Heuristic Analysis", "Interactive Visualization"]
 }
